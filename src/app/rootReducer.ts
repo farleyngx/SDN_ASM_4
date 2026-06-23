@@ -1,7 +1,7 @@
 import { combineReducers } from '@reduxjs/toolkit';
-import authReducer from '../features/auth/authSlice';
-import quizReducer from '../features/quiz-runner/quizSlice';
-import managerReducer from '../features/question-manager/managerSlice';
+import authReducer from '../features/authSlice';
+import quizReducer from '../features/quizSlice';
+import managerReducer from '../features/managerSlice';
 
 const rootReducer = combineReducers({
   auth: authReducer,
