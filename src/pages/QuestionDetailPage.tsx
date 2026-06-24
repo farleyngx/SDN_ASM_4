@@ -124,13 +124,13 @@ export default function QuestionDetailPage() {
               )}
 
               <div className="border-top pt-4 mt-4 d-flex justify-content-between align-items-center">
-                {user?.admin ? (
+                {/* {user?.admin ? (
                   <span className="small text-muted">
                     Created by: <span className="fw-semibold text-dark">{currentQuestion.author?.username || 'Unknown'}</span>
                   </span>
                 ) : (
                   <span />
-                )}
+                )} */}
                 <button className="btn btn-outline-secondary px-4 py-2 rounded-3 font-josefin" onClick={() => navigate('/dashboard')}>
                   Back to Dashboard
                 </button>

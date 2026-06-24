@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { logout } from '../features/authSlice';
 import { fetchQuizById, createQuestionForQuiz, createManyQuestionsForQuiz } from '../features/quizSlice';
+import { updateQuestion, deleteQuestion } from '../features/managerSlice';
 
 export default function QuizDetailPage() {
   const { quizId } = useParams<{ quizId: string }>();
@@ -14,6 +15,7 @@ export default function QuizDetailPage() {
   const { currentQuiz, loading, error } = useSelector((state: any) => state.quiz);
 
   // Single Question Form State
+  const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
   const [singleText, setSingleText] = useState('');
   const [singleOptions, setSingleOptions] = useState<string[]>(['', '', '', '']);
   const [singleCorrect, setSingleCorrect] = useState<number>(0);
@@ -48,16 +50,35 @@ export default function QuizDetailPage() {
       correctAnswerIndex: Number(singleCorrect)
     };
 
-    dispatch(createQuestionForQuiz({ quizId, questionData })).then((res: any) => {
-      if (!res.error) {
-        alert('Đã thêm câu hỏi thành công!');
-        dispatch(fetchQuizById(quizId));
-        // Reset single form
-        setSingleText('');
-        setSingleOptions(['', '', '', '']);
-        setSingleCorrect(0);
-      }
-    });
+    if (editingQuestionId) {
+      dispatch(updateQuestion({ id: editingQuestionId, questionData })).then((res: any) => {
+        if (!res.error) {
+          alert('Cập nhật câu hỏi thành công!');
+          dispatch(fetchQuizById(quizId));
+          setEditingQuestionId(null);
+          setSingleText('');
+          setSingleOptions(['', '', '', '']);
+          setSingleCorrect(0);
+        }
+      });
+    } else {
+      dispatch(createQuestionForQuiz({ quizId, questionData })).then((res: any) => {
+        if (!res.error) {
+          alert('Đã thêm câu hỏi thành công!');
+          dispatch(fetchQuizById(quizId));
+          setSingleText('');
+          setSingleOptions(['', '', '', '']);
+          setSingleCorrect(0);
+        }
+      });
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingQuestionId(null);
+    setSingleText('');
+    setSingleOptions(['', '', '', '']);
+    setSingleCorrect(0);
   };
 
   const handleBulkOptionChange = (qIdx: number, optIdx: number, val: string) => {
@@ -115,7 +136,6 @@ export default function QuizDetailPage() {
       if (!res.error) {
         alert('Đã thêm toàn bộ câu hỏi thành công!');
         dispatch(fetchQuizById(quizId));
-        // Reset bulk form
         setBulkQuestions([{ text: '', options: ['', '', '', ''], correctAnswerIndex: 0 }]);
       }
     });
@@ -214,38 +234,74 @@ export default function QuizDetailPage() {
               <h4 className="fw-bold font-josefin mb-3" style={{ color: '#2c3524' }}>Questions List</h4>
               <div className="d-flex flex-column gap-3">
                 {currentQuiz.questions && currentQuiz.questions.length > 0 ? (
-                  currentQuiz.questions.map((q: any, qIdx: number) => (
-                    <div className="card p-4 border-0 shadow-sm rounded-4" key={q._id || qIdx} style={{ backgroundColor: 'var(--natural-color)' }}>
-                      <div className="d-flex gap-2 align-items-start mb-3">
-                        <span className="badge bg-dark rounded-circle d-flex align-items-center justify-content-center" style={{ width: '24px', height: '24px', fontSize: '0.8rem' }}>
-                          {qIdx + 1}
-                        </span>
-                        <h5 className="fw-bold h6 m-0 font-josefin pt-0.5" style={{ color: '#2c3524', lineHeight: '1.4' }}>
-                          <Link to={`/dashboard/questions/${q._id || q}`} className="text-decoration-none text-dark hover-underline">
-                            {q.text || `Question ID: ${q}`}
-                          </Link>
-                        </h5>
+                  currentQuiz.questions.map((q: any, qIdx: number) => {
+                    const isQuestionAuthor = isAuthenticated && (q.author === user?._id || q.author?._id === user?._id);
+                    return (
+                      <div className="card p-4 border-0 shadow-sm rounded-4" key={q._id || qIdx} style={{ backgroundColor: 'var(--natural-color)' }}>
+                        <div className="d-flex gap-2 align-items-start mb-3">
+                          <span className="badge bg-dark rounded-circle d-flex align-items-center justify-content-center" style={{ width: '24px', height: '24px', fontSize: '0.8rem' }}>
+                            {qIdx + 1}
+                          </span>
+                          <h5 className="fw-bold h6 m-0 font-josefin pt-0.5" style={{ color: '#2c3524', lineHeight: '1.4' }}>
+                            <Link to={`/dashboard/questions/${q._id || q}`} className="text-decoration-none text-dark hover-underline">
+                              {q.text || `Question ID: ${q}`}
+                            </Link>
+                          </h5>
+                        </div>
+                        
+                        {q.options && (
+                          <ul className="list-group list-group-flush rounded-3 border mb-3">
+                            {q.options.map((opt: string, idx: number) => {
+                              const isCorrect = idx === q.correctAnswerIndex;
+                              return (
+                                <li 
+                                  key={idx} 
+                                  className={`list-group-item d-flex align-items-center py-2 px-3 border-0 small ${isCorrect ? 'bg-success bg-opacity-10 fw-bold' : ''}`}
+                                  style={{ color: isCorrect ? '#2e7d32' : 'inherit' }}
+                                >
+                                  <span className="me-2">•</span> {opt}
+                                  {isCorrect && <span className="badge bg-success ms-auto small rounded-pill px-2">Correct</span>}
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
+
+                        {/* Allow question editing/deleting if user is authenticated and is the author */}
+                        {isQuestionAuthor && (
+                          <div className="d-flex gap-2">
+                            <button 
+                              className="btn btn-warning btn-sm px-3 rounded-pill text-white fw-medium font-josefin"
+                              onClick={() => {
+                                setMode('single');
+                                setEditingQuestionId(q._id);
+                                setSingleText(q.text);
+                                setSingleOptions(q.options.concat(Array(4 - q.options.length).fill('')).slice(0, 4));
+                                setSingleCorrect(q.correctAnswerIndex);
+                              }}
+                            >
+                              Edit Question
+                            </button>
+                            <button 
+                              className="btn btn-outline-danger btn-sm px-3 rounded-pill fw-medium font-josefin"
+                              onClick={() => {
+                                if (window.confirm("Bạn có chắc chắn muốn xóa câu hỏi này khỏi hệ thống không?")) {
+                                  dispatch(deleteQuestion(q._id)).then(() => {
+                                    alert('Đã xóa câu hỏi thành công!');
+                                    if (quizId) {
+                                      dispatch(fetchQuizById(quizId));
+                                    }
+                                  });
+                                }
+                              }}
+                            >
+                              Delete Question
+                            </button>
+                          </div>
+                        )}
                       </div>
-                      
-                      {q.options && (
-                        <ul className="list-group list-group-flush rounded-3 border">
-                          {q.options.map((opt: string, idx: number) => {
-                            const isCorrect = idx === q.correctAnswerIndex;
-                            return (
-                              <li 
-                                key={idx} 
-                                className={`list-group-item d-flex align-items-center py-2 px-3 border-0 small ${isCorrect ? 'bg-success bg-opacity-10 fw-bold' : ''}`}
-                                style={{ color: isCorrect ? '#2e7d32' : 'inherit' }}
-                              >
-                                <span className="me-2">•</span> {opt}
-                                {isCorrect && <span className="badge bg-success ms-auto small rounded-pill px-2">Correct</span>}
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      )}
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <div className="card text-center p-5 border-0 rounded-4" style={{ backgroundColor: 'var(--natural-color)' }}>
                     <p className="text-muted mb-0">Đề thi này chưa có câu hỏi nào được gán.</p>
@@ -254,28 +310,32 @@ export default function QuizDetailPage() {
               </div>
             </div>
 
-            {/* Right: Add Questions Forms (Only for logged-in Users) */}
+            {/* Right: Add/Edit Questions Forms (Only for logged-in Users) */}
             {isAuthenticated && (
               <div className="col-lg-5">
-                <h4 className="fw-bold font-josefin mb-3" style={{ color: '#2c3524' }}>Add Questions to Quiz</h4>
+                <h4 className="fw-bold font-josefin mb-3" style={{ color: '#2c3524' }}>
+                  {editingQuestionId ? 'Edit Question' : 'Add Questions to Quiz'}
+                </h4>
                 
-                {/* Form Tabs */}
-                <div className="d-flex mb-3 border-bottom">
-                  <button 
-                    className={`btn py-2 px-3 font-josefin fw-bold border-0 ${mode === 'single' ? 'text-success border-bottom border-success border-3' : 'text-muted'}`}
-                    style={{ background: 'none' }}
-                    onClick={() => setMode('single')}
-                  >
-                    Single Question
-                  </button>
-                  <button 
-                    className={`btn py-2 px-3 font-josefin fw-bold border-0 ${mode === 'bulk' ? 'text-success border-bottom border-success border-3' : 'text-muted'}`}
-                    style={{ background: 'none' }}
-                    onClick={() => setMode('bulk')}
-                  >
-                    Multiple Questions
-                  </button>
-                </div>
+                {/* Form Tabs (only available when not editing) */}
+                {!editingQuestionId && (
+                  <div className="d-flex mb-3 border-bottom">
+                    <button 
+                      className={`btn py-2 px-3 font-josefin fw-bold border-0 ${mode === 'single' ? 'text-success border-bottom border-success border-3' : 'text-muted'}`}
+                      style={{ background: 'none' }}
+                      onClick={() => setMode('single')}
+                    >
+                      Single Question
+                    </button>
+                    <button 
+                      className={`btn py-2 px-3 font-josefin fw-bold border-0 ${mode === 'bulk' ? 'text-success border-bottom border-success border-3' : 'text-muted'}`}
+                      style={{ background: 'none' }}
+                      onClick={() => setMode('bulk')}
+                    >
+                      Multiple Questions
+                    </button>
+                  </div>
+                )}
 
                 {mode === 'single' ? (
                   <div className="card p-4 border-0 shadow-sm rounded-4" style={{ backgroundColor: 'var(--natural-color)' }}>
@@ -321,9 +381,14 @@ export default function QuizDetailPage() {
                         <div className="form-text small text-muted">Chỉ số từ 0 đến 3.</div>
                       </div>
                       
-                      <button type="submit" className="btn btn-custom w-100 py-2.5 rounded-3 fw-medium font-josefin">
-                        Add Single Question
+                      <button type="submit" className="btn btn-custom w-100 py-2.5 rounded-3 fw-medium font-josefin mb-2">
+                        {editingQuestionId ? 'Update Question' : 'Add Single Question'}
                       </button>
+                      {editingQuestionId && (
+                        <button type="button" className="btn btn-outline-secondary w-100 py-2 rounded-3 fw-medium font-josefin" onClick={handleCancelEdit}>
+                          Cancel Edit
+                        </button>
+                      )}
                     </form>
                   </div>
                 ) : (

@@ -194,9 +194,14 @@ export default function DashboardPage() {
                       .map((quiz: any) => (
                         <div className="col-md-6" key={quiz._id}>
                           <div className="card quiz-card h-100 p-4 border-0">
-                            <h5 className="fw-bold font-josefin text-uppercase mb-3" style={{ color: '#627254', letterSpacing: '0.05em' }}>
-                              {quiz.title}
-                            </h5>
+                            <div className="d-flex justify-content-between align-items-center mb-3">
+                              <h5 className="fw-bold font-josefin text-uppercase m-0" style={{ color: '#627254', letterSpacing: '0.05em' }}>
+                                {quiz.title}
+                              </h5>
+                              <span className="badge rounded-pill bg-light text-muted border font-monospace small">
+                                {quiz.questions?.length || 0} Questions
+                              </span>
+                            </div>
                             <p className="text-muted small flex-grow-1 lh-base mb-4">
                               {quiz.description || 'Không có mô tả cho đề trắc nghiệm này.'}
                             </p>
